@@ -28,8 +28,8 @@ class Tags(Base):
     tags = Column(String, default='')
 
 
-    def __init__(self, path, tags):
-        self.id = id
+    def __init__(self, _id, path, tags):
+        self.id = _id
         self.path = path
         self.tags = tags
 
