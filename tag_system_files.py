@@ -1,6 +1,10 @@
 import os
 
+
 delimiter = '\\' if os.name == 'nt' else '/'
+tag_delimiter = '/\\'
+TABLENAME = 'tags'
+DIRS = "directories.txt"
 
 
 def get_file_create_time(filename:str) -> float:
@@ -54,6 +58,8 @@ def list_files(path:str) -> list:
 
 def set_up():
     global to_ignore_dirs, to_ignore_parts
+    if len(to_ignore_dirs) == 0 and len(to_ignore_parts) == 0:
+        return
     with open(".tagignoredirs", 'r') as f:
         for line in f:
             to_ignore_dirs.append(os.path.abspath(line.strip()))
@@ -65,16 +71,16 @@ def set_up():
             if not part.endswith(delimiter):
                 part = part + delimiter
             to_ignore_parts.append(part)
+    to_ignore_parts.append(delimiter + f"{TABLENAME}.db-journal")
 
 
 if __name__ == "__main__":
-    # set_up()
-    # cnt = 0
-    # print(os.getcwd())
-    # for file in list_files(os.getcwd()):
-    #     print(file)
-    #     cnt += 1
-    # print(cnt)
-    print(get_file_create_time(r"C:\Users\dannu\CLionProjects\ITMO2022\21.12.10.Strings\A.cpp"))
-    print(get_file_create_time(r"C:\Users\dannu\CLionProjects\ITMO2022\21.12.10.Strings\B.cpp"))
+    set_up()
+    cnt = 0
+    print(os.getcwd())
+    for file in list_files(os.getcwd()):
+        print(file)
+        cnt += 1
+    print(cnt)
+   
     
