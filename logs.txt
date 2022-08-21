@@ -8,3 +8,7 @@
 2022-07-13 17:15:30,597 - Moving: C:\Users\dannu\CLionProjects\tag_system\__pycache__\background.cpython-310.pyc.1953177758384 to C:\Users\dannu\CLionProjects\tag_system\__pycache__\background.cpython-310.pyc
 2022-07-13 17:16:34,889 - Moving: C:\Users\dannu\CLionProjects\Assemble\A.cpp to C:\Users\dannu\CLionProjects\Assemble\Ayoure now being tested.cpp
 2022-07-13 17:26:33,477 - Moving: C:\Users\dannu\CLionProjects\Assemble\Ayoure now being tested.cpp to C:\Users\dannu\CLionProjects\Assemble\A.cpp
+2022-07-14 00:10:37,606 - Creating: C:\Users\dannu\CLionProjects\tag_system\tag_system_db.py
+2022-07-15 00:13:26,453 - Creating: C:\Users\dannu\CLionProjects\Clol\cmake-build-debug\New Text Document.txt
+2022-07-15 00:13:27,324 - Moving: C:\Users\dannu\CLionProjects\Clol\cmake-build-debug\New Text Document.txt to C:\Users\dannu\CLionProjects\Clol\cmake-build-debug\test.txt
+

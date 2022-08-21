@@ -1,28 +1,29 @@
-# let's start with database
 import functools
 import enum
 import os
+from typing import Callable, Iterable, List
 import tag_system_files as tsf
 from tag_system_files import tag_delimiter
 from pathlib import Path
 import tag_system_db as db
+import logging
 from tag_system_db import Tags
-import background as bg
-
 
 tsf.set_up()
 session = db.Session()
+logging.basicConfig(level=logging.INFO)
 
 
 def init(path: str):
+    """Add all files satisfying path to database"""
     path = os.path.abspath(path)
-    print(path)
+    # print(path)
     for file in tsf.list_files(path):
-        if not session.query(Tags).filter(Tags.path == file).first():
+        if not session.query(Tags).filter(
+                Tags.path == file).first():  # if the file is already in the db, there is no need to add it
             session.add(Tags(path=file, tags=''))
-    session.commit() 
-    bg.create_listener(path)
-    with open(tsf.DIRS, 'r') as f:
+    session.commit()
+    with open(tsf.DIRS, 'r') as f:  # add the directory as a directory to watch for background.pyw
         for line in f.readlines():
             if line.strip() == path:
                 return
@@ -30,8 +31,8 @@ def init(path: str):
         f.write(os.path.abspath(path) + '\n')
 
 
-
 def have_tag(file: str, tag: str):
+    """Check if the given file have the given tag"""
     res = session.query(Tags).filter(Tags.path == file).first()
     if not res:
         return
@@ -39,28 +40,30 @@ def have_tag(file: str, tag: str):
 
 
 def add_tag_file(file: str, tag: str):
+    """Adds tag to a file; if there is no such file, creates it; if the file already has the tag, gives a warning"""
     if have_tag(file, tag):
-        print("Tag '{}' already exists in {}".format(tag, file))
+        logging.warning(f"Tag '{tag}' already exists in {file}")
         return
     if not session.query(Tags).filter(Tags.path == file).first():
-            session.add(Tags(path=file, tags=tag + tag_delimiter))
+        session.add(Tags(path=file, tags=tag + tag_delimiter))
     else:
         session.query(Tags).filter(Tags.path == file).update({Tags.tags: Tags.tags + tag + tag_delimiter})
-    print("Added tag '{}' to {}".format(tag, file))
+    logging.info(f"Added tag '{tag}' to {file}")
 
 
 def remove_tag_file(file: str, tag: str):
     if not have_tag(file, tag):
-        print("Tag '{}' does not exist in {}".format(tag, file))
+        logging.warning(f"Tag '{tag}' does not exist in {file}")
         return
-    res = session.query(Tags).filter(Tags.path == file).first()
-    tags = res.tags
-    session.delete(res)
-    session.add(Tags(path=file, tags=tags.replace(tag + tag_delimiter, '')))
-    print("Removed tag '{}' from {}".format(tag, file))
+    if not session.query(Tags).filter(Tags.path == file).first():
+        logging.warning(f"The file '{file}' is not in the database")
+    else:
+        session.query(Tags).filter(Tags.path == file).update({Tags.tags: Tags.tags.replace(tag + tag_delimiter, '')})
+        logging.info(f"Removed tag '{tag}' from {file}")
 
 
 def remove_tag(path: str, tag: str):
+    """Remove the given tag from all files satisfying the path"""
     path = os.path.abspath(path)
     if os.path.isfile(path):
         remove_tag_file(path, tag)
@@ -71,6 +74,7 @@ def remove_tag(path: str, tag: str):
 
 
 def add_tag(path: str, tag: str):
+    """Add tbe given tag to all files satisfying the given path"""
     path = os.path.abspath(path)
     if os.path.isfile(path):
         add_tag_file(path, tag)
@@ -80,21 +84,16 @@ def add_tag(path: str, tag: str):
     session.commit()
 
 
-class Commands(enum.Enum):
-    remake = 0
-    add_tag = 1
-    print_help = 2
-    current = 3
-    exit = 4
-
-
 def print_help():
-    # TODO: rewrite 
-    print(">init <path> - initializes tags for all files in <path>"
-          ">add_tag <path> <tag> - add tag to all files satisfying the given path\n"
-          ">print_help - print this help\n"
-          ">current - print current state of database\n"
-          ">remove_tag <path> <tag> - remove tag from all files satisfying the given path\n"
+    print(">init '<path>' - initializes tags for all files in <path>\n"
+          ">add_tag '<path>' '<tag>' - add tag to all files satisfying the given path\n"
+          ">help - print this help\n"
+          ">current - print current state of database; optional arguement '-o' to print all files in database\n"
+          ">remove_tag '<path>' '<tag>' - remove tag from all files satisfying the given path\n"
+          ">choose 'path' '<tag1>, <tag2>, ...' - print all files that have all of the listed tags and satisfy the given path;"
+          "if path is empty, searches throughout all database\n"
+          ">cls - clear screen\n"
+          ">remake - remake database (can be used if there are some new folders to ignore)\n"
           ">exit - exit program\n\n"
           "little help about the add_tag command:\n"
           "please provide tags in single quotes, e.g. to add tag 'segment tree' to file './Round/solution.cpp', you should enter:\n"
@@ -103,67 +102,168 @@ def print_help():
           ">add_tag ./Round 'segment tree'\n")
 
 
-def extract_tag(s:str):
+def parse(s: str, start: int, delimiters: List[str]):
+    """Get value from the string, where it is embraced by delimiters
+    :param s: input string
+    :param start: start of the range in which value is searched
+    :param delimiters: delimiters
+    :return: value and end of its вхождение in string
+    """
     n = len(s)
-    i = 0
-    while i < n and s[i] != '\'':
+    i = start
+    while i < n and not (s[i] in delimiters):
         i += 1
     if i == n:
-        return ''
+        return '', -1
     i += 1
     tag = []
-    while i < n and s[i] != '\'':
+    while i < n and not (s[i] in delimiters):
         tag.append(s[i])
         i += 1
-    return ''.join(tag)
+    i += 1
+    return ''.join(tag), i
+
+
+def print_long(data: Iterable, butch=10, f: Callable = lambda x: x):
+    """Print data from iterable by butches"""
+    if butch == 0:
+        raise ValueError("Butch shouldn't be empty")
+    print(f"In total {len(data)} elements.")
+    counter = 0
+    for el in data:
+        print(f(el))
+        counter += 1
+        if (counter + 1) % butch == 0:
+            c = input("Continue? (y/n)>> ").lower()
+            if c == 'n':
+                print("...")
+                break
+
+
+def current(arg):
+    """Print current state of the database; if arg is '-o', print all elements, otherwise print in butches"""
+    tags = list(session.query(Tags).all())
+    tags.sort(key=functools.cmp_to_key(cmp))
+    if arg == '-o':
+        for tag in tags:
+            print(tag)
+    else:
+        print_long(tags, f=lambda x: x.path)
 
 
 def cmp(a: Tags, b: Tags):
+    """Comparator to sort files by path"""
     if a.path < b.path:
         return -1
     else:
         return 1
 
 
+def get_by_tags(path: str, tags: List[str]) -> List[str]:
+    """Get files from the given path which have ALL of the given tags"""
+    # may be change to return list of file objects? rn there's no need in that
+    # TODO: rewrite for & and ||
+    res = []
+    if path == '':  # check all files in db
+        for file in session.query(Tags).all():
+            flag = True
+            for tag in tags:
+                if not (tag in file.tags):
+                    flag = False
+                    break
+            if flag:
+                res.append(file.path)
+    else:
+        for file in tsf.list_files(path):  # check all files in db satisfying path
+            el = session.query(Tags).filter(Tags.path == file).first()
+            if el:
+                flag = True
+                for tag in tags:
+                    if not (tag in el.tags):
+                        flag = False
+                        break
+                if flag:
+                    res.append(el.path)
+    return sorted(res)
+
+
+def choose(path, tags):
+    """Print files from given path which has ALL of the given tags"""
+    files = get_by_tags(path, tags)
+    print_long(files)
+
+
+def remake():
+    """Recreate database"""
+    used = set()
+    with open(tsf.DIRS, 'r') as f:
+        for dir in f.readlines():
+            init(dir.strip())
+            for file in tsf.list_files(dir.strip()):
+                used.add(file)
+    for file in session.query(Tags).all():
+        if file.path not in used:
+            session.delete(file)
+    session.commit()
+
+
 def main():
+    """User interaction"""
     print("Hi! This is a test version of my tag system.\n"
           "Right now you can only interact with it via terminal, but it will evolve with time.\n"
           "Now, here is the list of commands.")
     print_help()
+    delimiters = ["'", '"']
     while True:
-        command, *arg = input("---\nEnter command:\n>>> ").split()
-        session = db.Session()
+        inp = input("---\nEnter command:\n>>> ").split()
+        if len(inp) == 0:
+            continue
+        command, *arg = inp
+        arg = ' '.join(arg).strip()
+        # session = db.Session()
         if command == "init":
             if len(arg) == 0:
-                path = Path(os.getcwd()).parent.absolute()
+                path = Path(os.getcwd()).parent.absolute()[0]
             else:
-                path = arg[0]
+                path = parse(arg, 0, delimiters)[0]
+            if path == '':
+                print("Invalid path. Did you provide it in upper commas(??)?")
+                continue
             init(path)
         elif command.endswith("tag"):
-            tag = extract_tag(''.join(arg[1:]))
+            path, i = parse(arg, 0, delimiters)
+            tag = parse(arg, i, delimiters)[0]
+            if path == '':
+                c = input(
+                    f"Are you sure you want to add tag '{tag}' to all files in the current directory? (y/n)>> ").lower()
+                if c == 'n':
+                    continue
+                else:
+                    path = Path(os.getcwd()).parent.absolute()
             if tag == '':
-                print("Invalid arguement (tag should not be empty)")
+                print("Invalid arguement (tag and path should not be empty)")
                 continue
             if command == "add_tag":
-                add_tag(arg[0].strip(), tag)
+                add_tag(path.strip(), tag)
             elif command == "remove_tag":
-                remove_tag(arg[0].strip(), tag)
+                remove_tag(path.strip(), tag)
             else:
                 print("Invalid command")
-        elif command == "print_help":
+        elif command == "help":
             print_help()
         elif command == "current":
-            tags = list(session.query(Tags).all())
-            tags.sort(key=functools.cmp_to_key(cmp))
-            if len(arg):
-                for tag in tags:
-                    print(tag)
-            else:
-                for tag in tags[:10]:
-                    print(tag)
-                if len(tags) > 10:
-                    print("...")
-            print(f"In total {len(tags)} files in the system.")
+            current(arg)
+        elif command == "choose":
+            path, i = parse(arg, 0, delimiters)
+            path = path.strip()
+            tags = parse(arg, i, delimiters)[0].split(',')
+            tags = list(map(lambda x: x.strip(), tags))
+            tags = list(filter(lambda x: x != '', tags))
+            choose(path, tags)
+        elif command == 'remake':
+            remake()
+        elif command == "cls":
+            os.system('cls' if os.name == 'nt' else 'clear')
         elif command == "exit":
             break
         else:
@@ -172,8 +272,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # session.commit()  # committing changes to database
-    # session.close()  # closing session with database
-    # engine.dispose()  # closing engine with database
     print("Bye!")
-    exit(0)  # exiting programm
+    exit(0)

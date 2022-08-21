@@ -58,8 +58,8 @@ def list_files(path:str) -> list:
 
 def set_up():
     global to_ignore_dirs, to_ignore_parts
-    if len(to_ignore_dirs) == 0 and len(to_ignore_parts) == 0:
-        return
+    to_ignore_dirs = []
+    to_ignore_parts = []
     with open(".tagignoredirs", 'r') as f:
         for line in f:
             to_ignore_dirs.append(os.path.abspath(line.strip()))
