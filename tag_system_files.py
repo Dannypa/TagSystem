@@ -1,13 +1,12 @@
 import os
 
-
 delimiter = '\\' if os.name == 'nt' else '/'
 tag_delimiter = '/\\'
 TABLENAME = 'tags'
-DIRS = "directories.txt"
+DIRS = r"C:\Users\dannu\CLionProjects\tag_system\directories.txt"
 
 
-def get_file_create_time(filename:str) -> float:
+def get_file_create_time(filename: str) -> float:
     """
     Get the creation time of a file.
     :param filename: The filename.
@@ -16,7 +15,7 @@ def get_file_create_time(filename:str) -> float:
     return os.path.getctime(filename)
 
 
-def is_parent(parent_path:str, child_path:str) -> bool:
+def is_parent(parent_path: str, child_path: str) -> bool:
     """
     :param parent_path: The parent path.
     :param child_path: The child path.
@@ -29,7 +28,9 @@ def is_parent(parent_path:str, child_path:str) -> bool:
 
 to_ignore_dirs = []
 to_ignore_parts = []
-def list_files(path:str) -> list:
+
+
+def list_files(path: str) -> list:
     """
     List files in a directory excluding files in to_ignore_dirs and files with parts in to_ignore_parts.
     :param path: The path to list files from.
@@ -54,16 +55,16 @@ def list_files(path:str) -> list:
             continue
         for file in files:
             yield os.path.join(dir, file)
-        
+
 
 def set_up():
     global to_ignore_dirs, to_ignore_parts
     to_ignore_dirs = []
     to_ignore_parts = []
-    with open(".tagignoredirs", 'r') as f:
+    with open(r"C:\Users\dannu\CLionProjects\tag_system\.tagignoredirs", 'r') as f:
         for line in f:
             to_ignore_dirs.append(os.path.abspath(line.strip()))
-    with open(".tagignoreparts", 'r') as f:
+    with open(r"C:\Users\dannu\CLionProjects\tag_system\.tagignoredirs", 'r') as f:
         for line in f:
             part = line.strip()
             if not part.startswith(delimiter):
@@ -82,5 +83,3 @@ if __name__ == "__main__":
         print(file)
         cnt += 1
     print(cnt)
-   
-    

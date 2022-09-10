@@ -97,9 +97,9 @@ def print_help():
           ">exit - exit program\n\n"
           "little help about the add_tag command:\n"
           "please provide tags in single quotes, e.g. to add tag 'segment tree' to file './Round/solution.cpp', you should enter:\n"
-          ">add_tag ./Round/solution.cpp 'segment tree'\n"
+          ">add_tag './Round/solution.cpp' 'segment tree'\n"
           "and to add tag 'segment tree' to all files in directory './Round' and its subdirectories, you should enter:\n"
-          ">add_tag ./Round 'segment tree'\n")
+          ">add_tag './Round' 'segment tree'\n")
 
 
 def parse(s: str, start: int, delimiters: List[str]):

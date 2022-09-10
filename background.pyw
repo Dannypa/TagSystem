@@ -5,16 +5,17 @@ import logging
 import tag_system_files as tsf
 import time
 
-
-# TODO: create another handler only to observe ".tagignoreparts" and ".tagignoredirs"
 logging.basicConfig(filename="logs.txt", filemode="a+", level=logging.INFO, format='%(asctime)s - %(message)s')
+
+
 class MyHandler(FileSystemEventHandler):
     def on_moved(self, event):
         for part in tsf.to_ignore_parts:  # if file does not need to be in database
             if part in event.src_path:
                 return
         logging.info("Moving: " + event.src_path + " to " + event.dest_path)
-        session.query(Tags).filter(Tags.path == event.src_path).update({Tags.path: event.dest_path})  # updating path in db
+        session.query(Tags).filter(Tags.path == event.src_path).update(
+            {Tags.path: event.dest_path})  # updating path in db
         session.commit()
 
     def on_created(self, event):
@@ -22,18 +23,21 @@ class MyHandler(FileSystemEventHandler):
             if part in event.src_path:
                 return
         logging.info("Creating: " + event.src_path)
-        if session.query(Tags).filter(Tags.path == event.src_path).first(): # if something with the same filename is already in db
-            return # we don't want to spam data to database
+        if session.query(Tags).filter(
+                Tags.path == event.src_path).first():  # if something with the same filename is already in db
+            return  # we don't want to spam data to database
         session.add(Tags(event.src_path, ''))
         session.commit()
 
-
     def on_modified(self, event):
-        if event.src_path.endswith('.tagignoreparts') or event.src_path.endswith('.tagignoredirs'):  # if we need to have new restrictions
+        if event.src_path.endswith('.tagignoreparts') or event.src_path.endswith(
+                '.tagignoredirs'):  # if we need to have new restrictions
             tsf.set_up()
 
 
 listeners = dict()  # directory path -> observer
+
+
 def create_listener(path: str):
     observer = Observer()
     observer.schedule(MyHandler(), path=path, recursive=True)
@@ -45,11 +49,11 @@ def create_listener(path: str):
 
 def main():
     # remake listeners every 3 seconds
-    while True: 
+    while True:
         with open(tsf.DIRS, "r") as f:
             current = set()  # set for all files that are currently need to be observed
             for line in f:
-                if line not in listeners: # if the file is not yet observed
+                if line not in listeners:  # if the file is not yet observed
                     try:
                         create_listener(line.strip())
                     except Exception as e:
@@ -68,5 +72,10 @@ def main():
 
 
 if __name__ == "__main__":
-    tsf.set_up()
+    logging.info("1")
+    try:
+        tsf.set_up()
+    except Exception as e:
+        logging.error(e)
+    logging.info("2")
     main()
