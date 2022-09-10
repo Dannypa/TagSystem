@@ -72,10 +72,8 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.info("1")
     try:
         tsf.set_up()
     except Exception as e:
         logging.error(e)
-    logging.info("2")
     main()
