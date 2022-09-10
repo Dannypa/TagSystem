@@ -2,10 +2,11 @@ from tag_system_db import session, Tags
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
+import config
 import tag_system_files as tsf
 import time
 
-logging.basicConfig(filename="logs.txt", filemode="a+", level=logging.INFO, format='%(asctime)s - %(message)s')
+logging.basicConfig(filename=config.logs_dir, filemode="a+", level=logging.INFO, format='%(asctime)s - %(message)s')
 
 
 class MyHandler(FileSystemEventHandler):
@@ -50,7 +51,7 @@ def create_listener(path: str):
 def main():
     # remake listeners every 3 seconds
     while True:
-        with open(tsf.DIRS, "r") as f:
+        with open(config.DIRS, "r") as f:
             current = set()  # set for all files that are currently need to be observed
             for line in f:
                 if line not in listeners:  # if the file is not yet observed
@@ -74,6 +75,6 @@ def main():
 if __name__ == "__main__":
     try:
         tsf.set_up()
-    except Exception as e:
-        logging.error(e)
+    except Exception as eo:
+        logging.error(eo)
     main()

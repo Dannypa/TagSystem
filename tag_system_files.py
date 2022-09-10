@@ -1,9 +1,5 @@
 import os
-
-delimiter = '\\' if os.name == 'nt' else '/'
-tag_delimiter = '/\\'
-TABLENAME = 'tags'
-DIRS = r"C:\Users\dannu\CLionProjects\tag_system\directories.txt"
+import config
 
 
 def get_file_create_time(filename: str) -> float:
@@ -34,52 +30,45 @@ def list_files(path: str) -> list:
     """
     List files in a directory excluding files in to_ignore_dirs and files with parts in to_ignore_parts.
     :param path: The path to list files from.
-    :param to_ignore_dirs: The directories to ignore.
     """
     # banned paths are already absolute
-    for dir, dirs, files in os.walk(path):
+    for directory, dirs, files in os.walk(path):
         to_skip = False
-        dir = os.path.abspath(dir)
-        dir += delimiter
+        directory = os.path.abspath(directory)
+        directory += config.delimiter
         for banned in to_ignore_dirs:
-            if is_parent(banned, dir):
+            if is_parent(banned, directory):
                 to_skip = True
                 break
         if to_skip:
             continue
         for part in to_ignore_parts:
-            if part in dir:
+            if part in directory:
                 to_skip = True
                 break
         if to_skip:
             continue
         for file in files:
-            yield os.path.join(dir, file)
+            yield os.path.join(directory, file)
 
 
 def set_up():
     global to_ignore_dirs, to_ignore_parts
     to_ignore_dirs = []
     to_ignore_parts = []
-    with open(r"C:\Users\dannu\CLionProjects\tag_system\.tagignoredirs", 'r') as f:
+    with open(config.ignore_dirs, 'r') as f:
         for line in f:
             to_ignore_dirs.append(os.path.abspath(line.strip()))
-    with open(r"C:\Users\dannu\CLionProjects\tag_system\.tagignoredirs", 'r') as f:
+    with open(config.ignore_parts, 'r') as f:
         for line in f:
             part = line.strip()
-            if not part.startswith(delimiter):
-                part = delimiter + part
-            if not part.endswith(delimiter):
-                part = part + delimiter
+            if not part.startswith(config.delimiter):
+                part = config.delimiter + part
+            if not part.endswith(config.delimiter):
+                part = part + config.delimiter
             to_ignore_parts.append(part)
-    to_ignore_parts.append(delimiter + f"{TABLENAME}.db-journal")
+    to_ignore_parts.append(config.delimiter + f"{config.TABLENAME}.db-journal")
 
 
 if __name__ == "__main__":
     set_up()
-    cnt = 0
-    print(os.getcwd())
-    for file in list_files(os.getcwd()):
-        print(file)
-        cnt += 1
-    print(cnt)

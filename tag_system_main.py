@@ -1,9 +1,8 @@
 import functools
-import enum
 import os
-from typing import Callable, Iterable, List
+from typing import Callable, Collection, List
 import tag_system_files as tsf
-from tag_system_files import tag_delimiter
+import config
 from pathlib import Path
 import tag_system_db as db
 import logging
@@ -17,17 +16,16 @@ logging.basicConfig(level=logging.INFO)
 def init(path: str):
     """Add all files satisfying path to database"""
     path = os.path.abspath(path)
-    # print(path)
     for file in tsf.list_files(path):
         if not session.query(Tags).filter(
                 Tags.path == file).first():  # if the file is already in the db, there is no need to add it
             session.add(Tags(path=file, tags=''))
     session.commit()
-    with open(tsf.DIRS, 'r') as f:  # add the directory as a directory to watch for background.pyw
+    with open(config.DIRS, 'r') as f:  # add the directory as a directory to watch for background.pyw
         for line in f.readlines():
             if line.strip() == path:
                 return
-    with open(tsf.DIRS, 'a+') as f:
+    with open(config.DIRS, 'a+') as f:
         f.write(os.path.abspath(path) + '\n')
 
 
@@ -36,7 +34,7 @@ def have_tag(file: str, tag: str):
     res = session.query(Tags).filter(Tags.path == file).first()
     if not res:
         return
-    return (tag + tag_delimiter) in res.tags
+    return (tag + config.tag_delimiter) in res.tags
 
 
 def add_tag_file(file: str, tag: str):
@@ -45,9 +43,9 @@ def add_tag_file(file: str, tag: str):
         logging.warning(f"Tag '{tag}' already exists in {file}")
         return
     if not session.query(Tags).filter(Tags.path == file).first():
-        session.add(Tags(path=file, tags=tag + tag_delimiter))
+        session.add(Tags(path=file, tags=tag + config.tag_delimiter))
     else:
-        session.query(Tags).filter(Tags.path == file).update({Tags.tags: Tags.tags + tag + tag_delimiter})
+        session.query(Tags).filter(Tags.path == file).update({Tags.tags: Tags.tags + tag + config.tag_delimiter})
     logging.info(f"Added tag '{tag}' to {file}")
 
 
@@ -58,7 +56,8 @@ def remove_tag_file(file: str, tag: str):
     if not session.query(Tags).filter(Tags.path == file).first():
         logging.warning(f"The file '{file}' is not in the database")
     else:
-        session.query(Tags).filter(Tags.path == file).update({Tags.tags: Tags.tags.replace(tag + tag_delimiter, '')})
+        session.query(Tags).filter(Tags.path == file).update(
+            {Tags.tags: Tags.tags.replace(tag + config.tag_delimiter, '')})
         logging.info(f"Removed tag '{tag}' from {file}")
 
 
@@ -90,15 +89,18 @@ def print_help():
           ">help - print this help\n"
           ">current - print current state of database; optional arguement '-o' to print all files in database\n"
           ">remove_tag '<path>' '<tag>' - remove tag from all files satisfying the given path\n"
-          ">choose 'path' '<tag1>, <tag2>, ...' - print all files that have all of the listed tags and satisfy the given path;"
+          ">choose 'path' '<tag1>, <tag2>, ...' - "
+          "print all files that have all of the listed tags and satisfy the given path;"
           "if path is empty, searches throughout all database\n"
           ">cls - clear screen\n"
           ">remake - remake database (can be used if there are some new folders to ignore)\n"
           ">exit - exit program\n\n"
           "little help about the add_tag command:\n"
-          "please provide tags in single quotes, e.g. to add tag 'segment tree' to file './Round/solution.cpp', you should enter:\n"
+          "please provide tags in single quotes, e.g. to add tag 'segment tree' to file './Round/solution.cpp',"
+          " you should enter:\n"
           ">add_tag './Round/solution.cpp' 'segment tree'\n"
-          "and to add tag 'segment tree' to all files in directory './Round' and its subdirectories, you should enter:\n"
+          "and to add tag 'segment tree' to all files in directory './Round' and its subdirectories, you should enter:"
+          "\n"
           ">add_tag './Round' 'segment tree'\n")
 
 
@@ -124,7 +126,7 @@ def parse(s: str, start: int, delimiters: List[str]):
     return ''.join(tag), i
 
 
-def print_long(data: Iterable, butch=10, f: Callable = lambda x: x):
+def print_long(data: Collection, butch=10, f: Callable = lambda x: x):
     """Print data from iterable by butches"""
     if butch == 0:
         raise ValueError("Butch shouldn't be empty")
@@ -161,7 +163,6 @@ def cmp(a: Tags, b: Tags):
 
 def get_by_tags(path: str, tags: List[str]) -> List[str]:
     """Get files from the given path which have ALL of the given tags"""
-    # may be change to return list of file objects? rn there's no need in that
     # TODO: rewrite for & and ||
     res = []
     if path == '':  # check all files in db
@@ -196,10 +197,10 @@ def choose(path, tags):
 def remake():
     """Recreate database"""
     used = set()
-    with open(tsf.DIRS, 'r') as f:
-        for dir in f.readlines():
-            init(dir.strip())
-            for file in tsf.list_files(dir.strip()):
+    with open(config.DIRS, 'r') as f:
+        for directory in f.readlines():
+            init(directory.strip())
+            for file in tsf.list_files(directory.strip()):
                 used.add(file)
     for file in session.query(Tags).all():
         if file.path not in used:
@@ -220,10 +221,9 @@ def main():
             continue
         command, *arg = inp
         arg = ' '.join(arg).strip()
-        # session = db.Session()
         if command == "init":
             if len(arg) == 0:
-                path = Path(os.getcwd()).parent.absolute()[0]
+                path = ''
             else:
                 path = parse(arg, 0, delimiters)[0]
             if path == '':
